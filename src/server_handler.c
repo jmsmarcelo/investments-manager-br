@@ -1,3 +1,4 @@
+#include <string.h>
 #include <openssl/ssl.h>
 #include <openssl/err.h>
 #include "../include/server_handler.h"
@@ -15,14 +16,22 @@ void log_write_ssl_errors(void) {
 }
 
 #ifdef _WIN32
-    DWORD sock_timeout = 5000;
+DWORD sock_timeout = 10000;
 #else
-    struct timeval sock_timeout = { .tv_sec = 5, .tv_usec = 0};
+struct timeval sock_timeout = { .tv_sec = 10, .tv_usec = 0};
 #endif
 
 void handle_client(client_t *client) {
-    setsockopt(client->sock, SOL_SOCKET, SO_RCVTIMEO, (const void *)&sock_timeout, sizeof(sock_timeout));
-    setsockopt(client->sock, SOL_SOCKET, SO_SNDTIMEO, (const void *)&sock_timeout, sizeof(sock_timeout));
+    setsockopt(client->sock, SOL_SOCKET, SO_RCVTIMEO,
+#ifdef _WIN32
+        (const char *)
+#endif
+        &sock_timeout, sizeof(sock_timeout));
+    setsockopt(client->sock, SOL_SOCKET, SO_SNDTIMEO,
+#ifdef _WIN32
+        (const char *)
+#endif
+        &sock_timeout, sizeof(sock_timeout));
 
     if(client->is_https) {
         client->ssl = SSL_new(get_ssl_context());
@@ -39,7 +48,8 @@ void handle_client(client_t *client) {
         "Content-Length: 2\r\n"
         "Connection: close\r\n\r\n"
         "OK";
-    send_all(client, content, sizeof(content));
+
+    send_all(client, content, strlen(content));
 
 CLEANUP:
     if(client->is_https) {

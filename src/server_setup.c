@@ -37,14 +37,16 @@ void port_init(void) {
 #ifdef _WIN32
 static WSADATA wsa_data;
 static int wsa_initialized = 0;
-static char opt_on = 1;
-static char opt_off = 0;
+static const char opt_on = 1;
+static const char opt_off = 0;
 #else
 static int opt_on = 1;
 static int opt_off = 0;
 #endif
 
-static socket_t sock_http = INVALID_SOCK,
+static socket_t listener = INVALID_SOCK,
+                writer = INVALID_SOCK,
+                sock_http = INVALID_SOCK,
                 sock_https = INVALID_SOCK;
 
 static SSL_CTX *ssl_context = NULL;
@@ -121,9 +123,26 @@ status_t sock_setup(void) {
         log_write("[INFO] HTTPS server started on port %d", port_https);
     }
 
+    /* Wakeup channel via UDP loopback para fecha o servidor corretamente */
+    listener = socket(AF_INET, SOCK_DGRAM, 0);
+    struct sockaddr_in addr = {
+        .sin_family = AF_INET, .sin_addr.s_addr = htonl(INADDR_LOOPBACK), .sin_port = 0
+    };
+    bind(listener, (struct sockaddr *)&addr, sizeof(addr));
+    socklen_t addrlen = sizeof(addr);
+    getsockname(listener, (struct sockaddr *)&addr, &addrlen);
+    writer = socket(AF_INET, SOCK_DGRAM, 0);
+    connect(writer, (struct sockaddr *)&addr, addrlen);
+
     return STATUS_OK;
 }
 
+socket_t get_listener(void) {
+    return listener;
+}
+socket_t get_writer(void) {
+    return writer;
+}
 socket_t get_sock_http(void) {
     return sock_http;
 }
@@ -143,9 +162,13 @@ int get_port_https(void) {
 
 void sock_setup_cleanup(void) {
     if(ssl_context) SSL_CTX_free(ssl_context);
+    if(listener != INVALID_SOCK) CLOSE_SOCK(listener);
+    if(writer != INVALID_SOCK) CLOSE_SOCK(writer);
     if(sock_http != INVALID_SOCK) CLOSE_SOCK(sock_http);
     if(sock_https != INVALID_SOCK) CLOSE_SOCK(sock_https);
     ssl_context = NULL;
+    listener = INVALID_SOCK;
+    writer = INVALID_SOCK;
     sock_http = INVALID_SOCK;
     sock_https = INVALID_SOCK;
 

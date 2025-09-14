@@ -8,8 +8,11 @@
 status_t sock_setup(void);
 void sock_setup_cleanup(void);
 
+socket_t get_listener(void);
+socket_t get_writer(void);
 socket_t get_sock_http(void);
 socket_t get_sock_https(void);
+
 SSL_CTX *get_ssl_context(void);
 
 int get_port_http(void);
