@@ -76,17 +76,25 @@ void *tpool_handle(void *arg)
 status_t tpool_init(void) {
     mutex_init(&global_mutex);
     cond_init(&global_cond);
+
     threads = malloc(sizeof(thread_t) * pool_len);
     slots = malloc(sizeof(slot_t) * pool_len);
+    if(!threads || !slots) return FAILED_ALLOC;
+
     slots_free = pool_len;
     for(int i = 0; i < pool_len; i++) {
         slots[i].is_free = 1;
         mutex_init(&slots[i].mutex);
         cond_init(&slots[i].cond);
 
+        slots[i].client.pg = PQconnectdb("");   // Todas as configurações do PostgreSQL devem estar em variáveis de ambiente
+        if(PQstatus(slots[i].client.pg) != CONNECTION_OK) {
+            log_write("[ERROR] %s", PQerrorMessage(slots[i].client.pg));
+            return PG_ERROR;
+        }
+
         int *arg = malloc(sizeof(int));
         *arg = i;
-
         thread_create(&threads[i], tpool_handle, arg);
     }
     return STATUS_OK;
@@ -133,13 +141,14 @@ status_t tpool_destroy(void) {
 
     for(int i = 0; i < pool_len; i++) {
         cond_broadcast(&slots[i].cond);
-    }
-
-    for(int i = 0; i < pool_len; i++) {
+        mutex_lock(&slots[i].mutex);
+        PQfinish(slots[i].client.pg);
+        mutex_unlock(&slots[i].mutex);
         thread_join(threads[i]);
     }
 
-    free(slots);
-    free(threads);
+    if(slots) free(slots);
+    if(threads) free(threads);
+
     return STATUS_OK;
 }

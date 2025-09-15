@@ -12,7 +12,9 @@
     X(COULD_NOT_CREATE_SSL_CTX, "Could not create SSL context") \
     X(ERROR_LOADING_CERT, "Error loading certificate") \
     X(ERROR_LOADING_KEY, "Error loading private key") \
-    X(CLIENT_ACCEPT_FAILURE, "Client accept failure")
+    X(CLIENT_ACCEPT_FAILURE, "Client accept failure") \
+    X(FAILED_ALLOC, "Memory allocation failed") \
+    X(PG_ERROR, "Failed to connect to PostgreSQL")
 
 GENERATE_ENUM(status, SERVER_STATUS)
 const char *status_msg(status_t code);

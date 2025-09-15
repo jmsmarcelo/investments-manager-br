@@ -42,13 +42,24 @@ void handle_client(client_t *client) {
         }
     }
 
-    const char content[] =
+    if(PQstatus(client->pg) != CONNECTION_OK) {
+        PQreset(client->pg);
+    }
+    PGresult *res = PQexec(client->pg, "SELECT version();");
+    if(PQresultStatus(res) != PGRES_TUPLES_OK) {
+        log_write("[ERROR] PostgreSQL: %s", PQerrorMessage(client->pg));
+    }
+    const char *pq_version = PQgetvalue(res, 0, 0);
+    PQclear(res);
+
+    char content[256];
+
+    snprintf(content, 256,
         "HTTP/1.1 200 OK\r\n"
         "Content-Type: text/html\r\n"
-        "Content-Length: 2\r\n"
+        "Content-Length: %d\r\n"
         "Connection: close\r\n\r\n"
-        "OK";
-
+        "%s", strlen(pq_version), pq_version);
     send_all(client, content, strlen(content));
 
 CLEANUP:

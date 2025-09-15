@@ -126,6 +126,7 @@ static inline void cond_broadcast(cond_t *c) {
 }
 
 #include <openssl/ssl.h>
+#include <postgresql/libpq-fe.h>
 
 typedef struct {
     char ip[INET6_ADDRSTRLEN];
@@ -133,6 +134,7 @@ typedef struct {
     int is_https;
     SSL *ssl;
     socket_t sock;
+    PGconn *pg;
     char buffer[4096];
 } client_t;
 
